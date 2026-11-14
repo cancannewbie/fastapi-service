@@ -6,9 +6,14 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: fastapi_service
     ports:
-      - "5432:5432"
+      # Host port 5433 by default: on WSL with mirrored networking the host
+      # itself may already hold 5432. Override with POSTGRES_PORT.
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # PostgreSQL 18 moved the data directory: the image expects a single
+      # mount at /var/lib/postgresql and puts the cluster in a version-specific
+      # subdirectory. Mounting /var/lib/postgresql/data makes it refuse to start.
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d fastapi_service"]
       interval: 5s

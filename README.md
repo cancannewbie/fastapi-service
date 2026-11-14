@@ -18,6 +18,9 @@ uv run fastapi-service  # 启动服务 → http://127.0.0.1:8000/docs
 
 没有 Docker 也能跑 —— 测试会自动拉起一个内嵌的 PostgreSQL（见 [测试](#测试)）。
 
+> **端口**：compose 把 Postgres 发布到宿主机 **5433**（容器内仍是 5432）。
+> 5432 在 WSL mirrored 网络下可能被宿主占用，改端口只需设 `POSTGRES_PORT`。
+
 ## 项目结构
 
 ```
@@ -81,7 +84,7 @@ fastapi-service/
 | `FASTAPI_PORT`              | `8000`                                                              | 监听端口                 |
 | `FASTAPI_RELOAD`            | `false`                                                             | 是否开启热重载           |
 | `FASTAPI_CORS_ORIGINS`      | `["http://localhost:3000"]`                                         | 跨域来源（JSON 数组）    |
-| `FASTAPI_DATABASE_URL`      | `postgresql+psycopg://postgres:postgres@localhost:5432/fastapi_service` | SQLAlchemy 连接串  |
+| `FASTAPI_DATABASE_URL`      | `postgresql+psycopg://postgres:postgres@localhost:5433/fastapi_service` | SQLAlchemy 连接串  |
 | `FASTAPI_DB_ECHO`           | `false`                                                             | 打印 SQL                 |
 | `FASTAPI_DB_CHECK_ON_STARTUP` | `true`                                                            | 启动时探活数据库         |
 
@@ -123,7 +126,7 @@ uv run alembic downgrade -1         # 回滚一版
 
 ```bash
 uv run pytest                 # 10 个用例
-TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/mydb uv run pytest
+TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5433/mydb uv run pytest
 ```
 
 ## 常用命令
@@ -151,13 +154,23 @@ make check       # lint + typecheck + test
 
 ## Docker
 
+本项目用的是 **WSL 内的原生 Docker Engine**（`docker-ce` 装在发行版里，systemd 托管），
+不走 Docker Desktop —— 镜像和卷都存在发行版的 ext4.vhdx 中。
+
 ```bash
-docker build -t fastapi-service .
-docker run --rm -p 8000:8000 -e FASTAPI_DATABASE_URL=postgresql+psycopg://... fastapi-service
+make db-up          # docker compose up -d postgres
+make db-down        # docker compose down
+make docker-build   # docker build -t fastapi-service .
+docker run --rm -p 8000:8000 \
+  -e FASTAPI_DATABASE_URL=postgresql+psycopg://postgres:postgres@host.docker.internal:5433/fastapi_service \
+  fastapi-service
 ```
 
 镜像为多阶段构建，以非 root 用户运行，依赖由 `uv.lock` 固定。镜像里带了 `alembic.ini`，
 可以直接 `docker run ... fastapi-service migrate` 执行迁移。
+
+> **权限**：安装时把当前用户加入了 `docker` 组，**新开一个终端**才会生效
+> （当前会话可临时用 `sg docker -c '...'`）。
 
 ## 下一步
 

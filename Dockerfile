@@ -23,7 +23,14 @@ COPY --from=builder --chown=appuser:appuser /app/alembic /app/alembic
 COPY --from=builder --chown=appuser:appuser /app/alembic.ini /app/alembic.ini
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    FASTAPI_ALEMBIC_INI=/app/alembic.ini
+    FASTAPI_ALEMBIC_INI=/app/alembic.ini \
+    FASTAPI_HOST=0.0.0.0 \
+    FASTAPI_PORT=8000
 USER appuser
 EXPOSE 8000
-CMD ["fastapi-service"]
+# ENTRYPOINT (not CMD) so `docker run <image> migrate` runs
+# `fastapi-service migrate` instead of looking for a "migrate" executable.
+# FASTAPI_HOST=0.0.0.0 above is what makes the port reachable from outside
+# the container (the app's default 127.0.0.1 would only listen on loopback).
+ENTRYPOINT ["fastapi-service"]
+CMD ["serve"]

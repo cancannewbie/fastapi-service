@@ -33,7 +33,8 @@ class Settings(BaseSettings):
 
     # SQLAlchemy URL. Use the "postgresql+psycopg://" driver (async capable);
     # "postgresql+asyncpg://" also works if you prefer asyncpg.
-    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/fastapi_service"
+    # The port matches compose.yaml's published host port (5433).
+    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5433/fastapi_service"
     db_echo: bool = False
     db_check_on_startup: bool = True
 
