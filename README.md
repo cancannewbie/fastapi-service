@@ -42,7 +42,7 @@ fastapi-service/
 │       └── items.py     # /items CRUD
 ├── alembic/             # 迁移脚本
 ├── alembic.ini
-├── compose.yaml         # 本地 Postgres
+├── compose.yaml         # Postgres、迁移任务和应用服务
 ├── tests/               # pytest（async）
 ├── Dockerfile
 ├── Makefile
@@ -134,7 +134,10 @@ TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5433/mydb uv 
 ```bash
 make install     # uv sync
 make db-up       # docker compose 起 Postgres
-make db-down     # 停掉
+make db-down     # 停掉 Compose 服务
+make up          # 构建并启动完整服务
+make down        # 停掉完整服务（保留数据库卷）
+make logs        # 查看服务日志
 make migrate     # 应用迁移
 make test        # pytest
 make lint        # ruff check + format --check
@@ -158,16 +161,18 @@ make check       # lint + typecheck + test
 不走 Docker Desktop —— 镜像和卷都存在发行版的 ext4.vhdx 中。
 
 ```bash
-make db-up          # docker compose up -d postgres
-make db-down        # docker compose down
-make docker-build   # docker build -t fastapi-service .
-docker run --rm -p 8000:8000 \
-  -e FASTAPI_DATABASE_URL=postgresql+psycopg://postgres:postgres@host.docker.internal:5433/fastapi_service \
-  fastapi-service
+make up             # 构建并启动完整服务
+make logs           # 查看日志
+make down           # 停止并移除容器，保留数据库卷
 ```
 
-镜像为多阶段构建，以非 root 用户运行，依赖由 `uv.lock` 固定。镜像里带了 `alembic.ini`，
-可以直接 `docker run ... fastapi-service migrate` 执行迁移。
+访问 http://127.0.0.1:8000/docs。Compose 会等待 Postgres 健康并执行 Alembic 迁移，
+迁移成功后才启动应用。应用通过 Compose 网络中的 `postgres:5432` 连接数据库。
+可在 `.env` 或环境变量中设置 `APP_PORT`（默认 8000）和 `POSTGRES_PORT`（默认 5433）
+来修改宿主机端口；若本机运行应用时更改了数据库端口，也要同步修改 `FASTAPI_DATABASE_URL`。
+
+`make db-up` 只启动 Postgres，供本机运行应用使用；`make db-down` 与 `make down` 都会停止整个 Compose 项目。
+镜像为多阶段构建，以非 root 用户运行，依赖由 `uv.lock` 固定。
 
 > **权限**：安装时把当前用户加入了 `docker` 组，**新开一个终端**才会生效
 > （当前会话可临时用 `sg docker -c '...'`）。

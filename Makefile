@@ -1,4 +1,5 @@
-.PHONY: install dev test lint format typecheck check run migrate migrate-new db-up db-down docker-build
+.PHONY: install dev test lint format typecheck check run migrate migrate-new \
+        db-up db-down up down logs docker-build
 
 install:
 	uv sync
@@ -39,5 +40,15 @@ migrate-new:
 	uv run alembic revision --autogenerate -m "$(m)"
 
 # Docker ---------------------------------------------------------------
+# Full stack: postgres + a one-shot migration job + the app.
+up:
+	docker compose up -d --build
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f
+
 docker-build:
 	docker build -t fastapi-service .
