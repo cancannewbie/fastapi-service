@@ -2,184 +2,82 @@
 
 [![CI](https://github.com/cancannewbie/fastapi-service/actions/workflows/ci.yml/badge.svg)](https://github.com/cancannewbie/fastapi-service/actions/workflows/ci.yml)
 
-一个用 [uv](https://docs.astral.sh/uv/) 管理、以 [FastAPI](https://fastapi.tiangolo.com/) + **SQLAlchemy 2.0 (async)** + **PostgreSQL** 为后端的 Web 服务骨架。
+使用 FastAPI、SQLAlchemy async、PostgreSQL 和 uv 的任务管理服务，包含用户注册、OAuth2 密码登录、JWT 鉴权及任务管理页面。
 
-配套 Alembic 迁移、pytest 测试、ruff / mypy (strict)、GitHub Actions CI 和多阶段 Dockerfile。
-
-## 快速开始
+## 使用 Docker Compose
 
 ```bash
-cd fastapi-service
-uv sync                 # 安装依赖（含 dev 依赖）
-make db-up              # 启动 Postgres（docker compose）
-make migrate            # 应用数据库迁移
-uv run fastapi-service  # 启动服务 → http://127.0.0.1:8000/docs
+cp .env.example .env
 ```
 
-没有 Docker 也能跑 —— 测试会自动拉起一个内嵌的 PostgreSQL（见 [测试](#测试)）。
-
-> **端口**：compose 把 Postgres 发布到宿主机 **5433**（容器内仍是 5432）。
-> 5432 在 WSL mirrored 网络下可能被宿主占用，改端口只需设 `POSTGRES_PORT`。
-
-## 项目结构
-
-```
-fastapi-service/
-├── src/fastapi_service/
-│   ├── __init__.py      # 包入口
-│   ├── app.py           # create_app() 应用工厂 + ASGI 实例
-│   ├── cli.py           # 命令行入口（serve / migrate）
-│   ├── config.py        # pydantic-settings 配置
-│   ├── errors.py        # 统一错误响应封装
-│   ├── schemas.py       # Pydantic 请求/响应模型
-│   ├── db/
-│   │   ├── base.py      # DeclarativeBase
-│   │   ├── models.py    # ORM 模型（items 表）
-│   │   ├── session.py   # engine / session factory / 依赖注入
-│   │   └── repository.py# ItemRepository 协议 + SQLAlchemy 实现
-│   └── api/
-│       ├── health.py    # /health、/ready（ready 会探活数据库）
-│       └── items.py     # /items CRUD
-├── alembic/             # 迁移脚本
-├── alembic.ini
-├── compose.yaml         # Postgres、迁移任务和应用服务
-├── tests/               # pytest（async）
-├── Dockerfile
-├── Makefile
-└── pyproject.toml
-```
-
-采用 `src/` 布局 + 依赖倒置：路由只依赖 `ItemRepository` 协议，换存储后端不用动路由。
-
-## API
-
-| 方法   | 路径                  | 说明                    |
-| ------ | --------------------- | ----------------------- |
-| GET    | `/health`             | 存活探针                |
-| GET    | `/ready`              | 就绪探针（会查数据库）  |
-| GET    | `/api/v1/items`       | 列出条目                |
-| POST   | `/api/v1/items`       | 创建条目                |
-| GET    | `/api/v1/items/{id}`  | 获取条目                |
-| PATCH  | `/api/v1/items/{id}`  | 局部更新                |
-| DELETE | `/api/v1/items/{id}`  | 删除条目                |
-
-错误统一返回：
-
-```json
-{ "error": { "code": "not_found", "message": "Item 999 does not exist" } }
-```
-
-请求校验失败（422）会额外带上 `details` 列表。
-
-## 配置
-
-全部来自环境变量（前缀 `FASTAPI_`）或项目根目录的 `.env`，参见 [.env.example](.env.example)：
-
-| 变量                        | 默认值                                                              | 说明                     |
-| --------------------------- | ------------------------------------------------------------------- | ------------------------ |
-| `FASTAPI_APP_NAME`          | `fastapi-service`                                                   | 应用名，也是 OpenAPI 标题 |
-| `FASTAPI_DEBUG`             | `false`                                                             | 调试模式                 |
-| `FASTAPI_API_PREFIX`        | `/api/v1`                                                           | 业务路由前缀             |
-| `FASTAPI_HOST`              | `127.0.0.1`                                                         | 监听地址                 |
-| `FASTAPI_PORT`              | `8000`                                                              | 监听端口                 |
-| `FASTAPI_RELOAD`            | `false`                                                             | 是否开启热重载           |
-| `FASTAPI_CORS_ORIGINS`      | `["http://localhost:3000"]`                                         | 跨域来源（JSON 数组）    |
-| `FASTAPI_DATABASE_URL`      | `postgresql+psycopg://postgres:postgres@localhost:5433/fastapi_service` | SQLAlchemy 连接串  |
-| `FASTAPI_DB_ECHO`           | `false`                                                             | 打印 SQL                 |
-| `FASTAPI_DB_CHECK_ON_STARTUP` | `true`                                                            | 启动时探活数据库         |
-
-数据库驱动用 **psycopg3**（`postgresql+psycopg://`，SQLAlchemy 官方推荐的现代驱动）；
-换成 asyncpg 只需把 URL 改成 `postgresql+asyncpg://`，代码不用动。
-
-`FASTAPI_DB_CHECK_ON_STARTUP=true` 时，连不上数据库会让进程**启动即失败**并给出明确报错，
-而不是等第一个请求进来才 500 —— 容器编排下这行为更合适。
-
-## 数据库与迁移
-
-表结构（`items`）：
-
-| 列            | 类型              | 约束              |
-| ------------- | ----------------- | ----------------- |
-| `id`          | `integer`         | 主键，自增        |
-| `name`        | `varchar(100)`    | 非空              |
-| `description` | `varchar(1000)`   | 可空              |
-| `price`       | `numeric(12, 2)`  | 非空（金额用精确小数，不用 float）|
-| `created_at`  | `timestamptz`     | 非空，默认 `now()`|
+为 `.env` 中的 `FASTAPI_JWT_SECRET` 设置独立的随机密钥，例如使用下面的命令生成，然后将输出填入 `.env`：
 
 ```bash
-make migrate                        # alembic upgrade head
-uv run alembic revision --autogenerate -m "add x"   # 生成新迁移
-uv run alembic downgrade -1         # 回滚一版
+python3 -c 'import secrets; print(secrets.token_urlsafe(32))'
 ```
-
-迁移脚本和运行时读的是同一个 `FASTAPI_DATABASE_URL`，不会出现「迁移到 A、服务连 B」。
-
-## 测试
-
-测试**永远跑在真 PostgreSQL 上**，不是 mock：
-
-- 设了 `TEST_DATABASE_URL` 就用它（CI 指向 service container）；
-- 否则用 [pgserver](https://pypi.org/project/pgserver/) 拉起一个内嵌 PostgreSQL —— **不需要 Docker**。
-  pgserver 只发布了 CPython ≤ 3.12 的 wheel，所以在 3.13 上必须设 `TEST_DATABASE_URL`。
-
-每次跑测试都会先执行一遍 Alembic 迁移，所以迁移脚本本身也在测试覆盖范围内。
 
 ```bash
-uv run pytest                 # 10 个用例
-TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5433/mydb uv run pytest
+make up
 ```
+
+打开 http://127.0.0.1:8000/ 注册账号并管理任务；API 文档位于 http://127.0.0.1:8000/docs。Compose 会等待 PostgreSQL 健康、运行 Alembic 迁移，然后启动应用。`make logs` 查看日志；`make down` 停止容器并保留数据库卷。
+
+`APP_PORT` 和 `POSTGRES_PORT` 可分别配置宿主机端口，默认是 8000 和 5433。应用容器通过 Compose 网络中的 `postgres:5432` 连接数据库。若更改了数据库宿主机端口，本机运行服务时也要同步修改 `FASTAPI_DATABASE_URL`。
+
+## 本机开发
+
+```bash
+uv sync
+make db-up
+make migrate
+make dev
+```
+
+服务默认使用 `localhost:5433` 的 PostgreSQL。`make db-up` 只启动 PostgreSQL；`make db-down` 与 `make down` 都会停止整个 Compose 项目。
+
+## 账号和任务 API
+
+API 前缀默认为 `/api/v1`，可通过 `FASTAPI_API_PREFIX` 修改。注册使用 `POST /auth/register`，请求 JSON 为 `{"username":"alice","password":"至少8位密码"}`。登录使用 `POST /auth/token`，提交 OAuth2 表单字段 `username` 和 `password`，获取 bearer token；`GET /auth/me` 返回当前用户。任务接口均需要 `Authorization: Bearer <token>`：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET / POST | `/api/v1/tasks` | 列出 / 创建当前用户的任务 |
+| GET / PATCH / DELETE | `/api/v1/tasks/{id}` | 查看 / 修改 / 删除当前用户的任务 |
+
+任务包含 `title`、可选 `description`、`status`（`todo`、`in_progress`、`done`）及创建时间。用户无法访问其他用户的任务。
+
+迁移保留原有的 `items` 数据表及其记录，但新 API 和页面使用 `tasks`；旧记录不会自动归属于用户或转换为任务。
+
+## 配置与部署
+
+完整示例见 [.env.example](.env.example)。应用从环境变量或工作目录下的 `.env` 读取配置；Compose 的应用服务也会读取可选的 `.env`。
+
+- `FASTAPI_JWT_SECRET`：JWT 签名密钥。生产环境必须设置高熵随机值，所有副本和进程需使用同一个密钥。未设置时，每个进程随机生成密钥，重启或切换副本会使令牌失效。
+- `FASTAPI_JWT_EXPIRE_MINUTES`：令牌有效期，默认 30 分钟。
+- `FASTAPI_DATABASE_URL`：SQLAlchemy 连接串，本机默认 `postgresql+psycopg://postgres:postgres@localhost:5433/fastapi_service`。
+- `FASTAPI_DB_POOL_SIZE` / `FASTAPI_DB_MAX_OVERFLOW`：每个应用进程的连接池大小及额外连接数，默认分别为 5 和 10；`pool_pre_ping` 保持启用。部署多个副本或 worker 时，按进程数乘以两者之和，预留迁移及其他连接，确保不超过 PostgreSQL 的连接上限。`pool_size=0` 和 `max_overflow=-1` 表示无限制，通常不适合生产环境。
+
+密码以 Argon2 哈希保存。密码登录和 bearer token 应通过 HTTPS 使用；公开部署前还应配置适合业务的注册策略、登录限流及反向代理。前端令牌仅保存在页面内存中，刷新页面后需要重新登录。
+
+## 迁移、测试与 CI
+
+```bash
+make migrate
+uv run alembic revision --autogenerate -m "describe change"
+make check
+```
+
+测试使用真实 PostgreSQL：设置 `TEST_DATABASE_URL` 时使用该数据库，否则在 Python 3.12 下使用 `pgserver` 启动独立实例。测试会执行迁移并清空测试表，**不要将 `TEST_DATABASE_URL` 指向包含需要保留数据的数据库**。Python 3.13 需要显式设置该变量。
+
+GitHub Actions 在 Python 3.12 和 3.13 上运行 `make check`。容器工作流为 PR 构建镜像；推送到 `main` 时构建并发布 `ghcr.io/cancannewbie/fastapi-service`，标签为 `latest` 和完整提交 SHA。首次发布后的镜像可见性取决于 GitHub Packages 设置。
 
 ## 常用命令
 
 ```bash
-make install     # uv sync
-make db-up       # docker compose 起 Postgres
-make db-down     # 停掉 Compose 服务
 make up          # 构建并启动完整服务
-make down        # 停掉完整服务（保留数据库卷）
-make logs        # 查看服务日志
+make down        # 停止服务，保留数据库卷
+make logs        # 跟踪容器日志
 make migrate     # 应用迁移
-make test        # pytest
-make lint        # ruff check + format --check
-make format      # ruff format + --fix
-make typecheck   # mypy（strict）
-make check       # lint + typecheck + test
+make check       # ruff、mypy、pytest
+make docker-build
 ```
-
-## CI
-
-[.github/workflows/ci.yml](.github/workflows/ci.yml) 在 push 到 `main`、pull request 或手动触发时运行，
-在 Python 3.12 / 3.13 上用 `services:` 起一个 Postgres 容器，执行 `make check`。
-
-- `uv` 由 [astral-sh/setup-uv](https://github.com/astral-sh/setup-uv) 安装并开启缓存
-- 依赖用 `uv sync --locked --all-groups` 安装；`uv.lock` 与 `pyproject.toml` 不一致时直接失败
-- action 版本锁定到精确 tag（`setup-uv@v10.3.3`、`checkout@v7.0.1`）—— `setup-uv` 没有 `v10` 这种浮动 tag
-
-## Docker
-
-本项目用的是 **WSL 内的原生 Docker Engine**（`docker-ce` 装在发行版里，systemd 托管），
-不走 Docker Desktop —— 镜像和卷都存在发行版的 ext4.vhdx 中。
-
-```bash
-make up             # 构建并启动完整服务
-make logs           # 查看日志
-make down           # 停止并移除容器，保留数据库卷
-```
-
-访问 http://127.0.0.1:8000/docs。Compose 会等待 Postgres 健康并执行 Alembic 迁移，
-迁移成功后才启动应用。应用通过 Compose 网络中的 `postgres:5432` 连接数据库。
-可在 `.env` 或环境变量中设置 `APP_PORT`（默认 8000）和 `POSTGRES_PORT`（默认 5433）
-来修改宿主机端口；若本机运行应用时更改了数据库端口，也要同步修改 `FASTAPI_DATABASE_URL`。
-
-`make db-up` 只启动 Postgres，供本机运行应用使用；`make db-down` 与 `make down` 都会停止整个 Compose 项目。
-镜像为多阶段构建，以非 root 用户运行，依赖由 `uv.lock` 固定。
-
-> **权限**：安装时把当前用户加入了 `docker` 组，**新开一个终端**才会生效
-> （当前会话可临时用 `sg docker -c '...'`）。
-
-## 下一步
-
-- 加鉴权（OAuth2 / JWT）和用户表
-- 把 `items` 换成自己的领域模型，换 `alembic revision --autogenerate` 生成迁移
-- CI 里加镜像构建和推送
-- 需要多副本部署时给连接池加上限（`pool_size` / `max_overflow`），并注意 `pool_pre_ping` 已开启

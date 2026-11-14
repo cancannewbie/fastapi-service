@@ -15,6 +15,16 @@ from sqlalchemy.orm import Mapped, mapped_column
 from .base import Base
 
 
+class UserModel(Base):
+    """A registered user and their password hash."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
 class ItemModel(Base):
     """An item row."""
 

@@ -14,7 +14,7 @@ from sqlalchemy import Connection, create_engine, pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from fastapi_service.config import get_settings
-from fastapi_service.db import models  # noqa: F401  (registers the ORM mappings)
+from fastapi_service.db import models, task_model  # noqa: F401  (register ORM mappings)
 from fastapi_service.db.base import Base
 
 config = context.config
