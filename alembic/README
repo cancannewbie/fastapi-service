@@ -1,1 +1,12 @@
 Generic single-database configuration.
+
+The database URL is not stored here: `alembic/env.py` reads it from the
+application settings (`FASTAPI_DATABASE_URL`), so migrations always target
+the same database as the service.
+
+Useful commands:
+
+    uv run alembic current                        # show the applied revision
+    uv run alembic upgrade head                   # apply all migrations
+    uv run alembic downgrade -1                   # roll back one revision
+    uv run alembic revision --autogenerate -m "x" # generate a new migration

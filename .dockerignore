@@ -10,4 +10,4 @@ __pycache__
 tests
 Dockerfile
 .dockerignore
-README.md
+compose.yaml
