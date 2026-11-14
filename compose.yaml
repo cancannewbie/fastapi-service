@@ -20,5 +20,32 @@ services:
       timeout: 5s
       retries: 10
 
+  # One-shot job: applies the Alembic migrations before the app starts.
+  migrate:
+    build: .
+    # Both services use the same image.
+    image: fastapi-service
+    command: ["migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      FASTAPI_DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/fastapi_service
+
+  app:
+    build: .
+    image: fastapi-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      FASTAPI_DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/fastapi_service
+      FASTAPI_HOST: 0.0.0.0
+      FASTAPI_PORT: 8000
+
 volumes:
   pgdata:
