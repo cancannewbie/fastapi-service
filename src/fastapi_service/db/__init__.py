@@ -5,7 +5,7 @@ from __future__ import annotations
 from .base import Base
 from .models import ItemModel
 from .repository import ItemRepository, SqlAlchemyItemRepository
-from .session import create_engine, create_session_factory, get_session, session_scope
+from .session import create_engine, create_session_factory, get_session
 
 __all__ = [
     "Base",
@@ -15,5 +15,4 @@ __all__ = [
     "create_engine",
     "create_session_factory",
     "get_session",
-    "session_scope",
 ]

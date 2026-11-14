@@ -7,7 +7,6 @@ when the app shuts down. Sessions are short-lived and created per request.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 
 from fastapi import Request
 from sqlalchemy.ext.asyncio import (
@@ -17,7 +16,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-__all__ = ["create_engine", "create_session_factory", "get_session", "session_scope"]
+__all__ = ["create_engine", "create_session_factory", "get_session"]
 
 
 def create_engine(url: str, *, echo: bool = False) -> AsyncEngine:
@@ -43,12 +42,3 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
         except Exception:
             await session.rollback()
             raise
-
-
-@asynccontextmanager
-async def session_scope(
-    factory: async_sessionmaker[AsyncSession],
-) -> AsyncIterator[AsyncSession]:
-    """Yield a session outside of a request (scripts, CLI, migrations)."""
-    async with factory() as session:
-        yield session

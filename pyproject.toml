@@ -24,7 +24,9 @@ build-backend = "uv_build"
 dev = [
     "httpx>=0.28.1",
     "mypy>=2.4.1",
-    "pgserver>=0.1.4",
+    # pgserver only publishes wheels for CPython <= 3.12. It exists so the
+    # test suite can run without Docker; CI uses a real Postgres service.
+    "pgserver>=0.1.4; python_version < '3.13'",
     "pytest>=9.2.0",
     "pytest-asyncio>=1.5.0",
     "ruff>=0.17.5",

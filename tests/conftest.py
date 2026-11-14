@@ -36,7 +36,14 @@ def database_url() -> Iterator[str]:
         yield override
         return
 
-    import pgserver
+    try:
+        import pgserver
+    except ImportError as exc:  # pragma: no cover - depends on the interpreter
+        raise RuntimeError(
+            "No PostgreSQL available for the tests. Set TEST_DATABASE_URL to a "
+            "reachable database, or run on Python 3.12 where the bundled "
+            "'pgserver' (embedded PostgreSQL) is installed."
+        ) from exc
 
     pgdata = Path(tempfile.gettempdir()) / "fastapi-service-test-pg"
     server = pgserver.get_server(str(pgdata))
