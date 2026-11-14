@@ -1,5 +1,7 @@
 # fastapi-service
 
+[![CI](https://github.com/OWNER/fastapi-service/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/fastapi-service/actions/workflows/ci.yml)
+
 一个用 [uv](https://docs.astral.sh/uv/) 管理、以 [FastAPI](https://fastapi.tiangolo.com/) 为框架的 Web 服务骨架。
 
 ## 快速开始
@@ -87,6 +89,17 @@ make typecheck   # mypy（strict）
 make check       # lint + typecheck + test
 ```
 
+## CI
+
+[.github/workflows/ci.yml](.github/workflows/ci.yml) 在 push 到 `main`、pull request 或手动触发时运行，
+在 Python 3.12 / 3.13 上执行 `make check`（lint + typecheck + test）：
+
+- `uv` 由 [astral-sh/setup-uv](https://github.com/astral-sh/setup-uv) 安装并开启缓存
+- 依赖用 `uv sync --locked --all-groups` 安装；`uv.lock` 与 `pyproject.toml` 不一致时直接失败
+- 任一步失败即该 job 失败
+
+> README 顶部的徽章里的 `OWNER` 需要替换成你的 GitHub 用户名/组织名（仓库地址确定后再改）。
+
 ## Docker
 
 ```bash
@@ -100,4 +113,4 @@ docker run --rm -p 8000:8000 fastapi-service
 
 - 把 `api/items.py` 里的 `InMemoryItemRepository` 换成真实数据库实现（方法签名保持一致即可）
 - 需要鉴权时加 `fastapi-users` 或 OAuth2 依赖
-- CI：加 GitHub Actions 跑 `make check`
+- 部署：把 `Dockerfile` 接到 CI 构建并推送到镜像仓库
