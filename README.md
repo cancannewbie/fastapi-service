@@ -117,6 +117,7 @@ uv run alembic downgrade -1         # 回滚一版
 
 - 设了 `TEST_DATABASE_URL` 就用它（CI 指向 service container）；
 - 否则用 [pgserver](https://pypi.org/project/pgserver/) 拉起一个内嵌 PostgreSQL —— **不需要 Docker**。
+  pgserver 只发布了 CPython ≤ 3.12 的 wheel，所以在 3.13 上必须设 `TEST_DATABASE_URL`。
 
 每次跑测试都会先执行一遍 Alembic 迁移，所以迁移脚本本身也在测试覆盖范围内。
 
