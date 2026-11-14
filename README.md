@@ -1,6 +1,6 @@
 # fastapi-service
 
-[![CI](https://github.com/OWNER/fastapi-service/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/fastapi-service/actions/workflows/ci.yml)
+[![CI](https://github.com/cancannewbie/fastapi-service/actions/workflows/ci.yml/badge.svg)](https://github.com/cancannewbie/fastapi-service/actions/workflows/ci.yml)
 
 一个用 [uv](https://docs.astral.sh/uv/) 管理、以 [FastAPI](https://fastapi.tiangolo.com/) 为框架的 Web 服务骨架。
 
@@ -97,8 +97,6 @@ make check       # lint + typecheck + test
 - `uv` 由 [astral-sh/setup-uv](https://github.com/astral-sh/setup-uv) 安装并开启缓存
 - 依赖用 `uv sync --locked --all-groups` 安装；`uv.lock` 与 `pyproject.toml` 不一致时直接失败
 - 任一步失败即该 job 失败
-
-> README 顶部的徽章里的 `OWNER` 需要替换成你的 GitHub 用户名/组织名（仓库地址确定后再改）。
 
 ## Docker
 
