@@ -31,6 +31,12 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    # SQLAlchemy URL. Use the "postgresql+psycopg://" driver (async capable);
+    # "postgresql+asyncpg://" also works if you prefer asyncpg.
+    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/fastapi_service"
+    db_echo: bool = False
+    db_check_on_startup: bool = True
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

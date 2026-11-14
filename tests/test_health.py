@@ -2,22 +2,22 @@
 
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 
-def test_health_returns_ok(client: TestClient) -> None:
-    response = client.get("/health")
+async def test_health_returns_ok(client: AsyncClient) -> None:
+    response = await client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
 
-def test_ready_returns_ready(client: TestClient) -> None:
-    response = client.get("/ready")
+async def test_ready_returns_ready(client: AsyncClient) -> None:
+    response = await client.get("/ready")
     assert response.status_code == 200
     assert response.json() == {"status": "ready"}
 
 
-def test_openapi_is_served(client: TestClient) -> None:
-    response = client.get("/openapi.json")
+async def test_openapi_is_served(client: AsyncClient) -> None:
+    response = await client.get("/openapi.json")
     assert response.status_code == 200
     assert response.json()["info"]["title"] == "test-service"

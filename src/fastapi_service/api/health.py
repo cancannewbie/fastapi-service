@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from sqlalchemy import text
 
 router = APIRouter(tags=["health"])
 
@@ -16,6 +17,8 @@ async def health() -> dict[str, Any]:
 
 
 @router.get("/ready", summary="Readiness probe")
-async def ready() -> dict[str, Any]:
-    """Return ``ready`` once the app has finished starting up."""
+async def ready(request: Request) -> dict[str, Any]:
+    """Return ``ready`` only when the database is reachable."""
+    async with request.app.state.engine.connect() as connection:
+        await connection.execute(text("SELECT 1"))
     return {"status": "ready"}
