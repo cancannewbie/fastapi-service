@@ -98,9 +98,6 @@ make check       # lint + typecheck + test
 - 依赖用 `uv sync --locked --all-groups` 安装；`uv.lock` 与 `pyproject.toml` 不一致时直接失败
 - 任一步失败即该 job 失败
 
-> 顶部的徽章在**私有仓库**下只对有权限的访问者可见（匿名请求 `badge.svg` 会返回 404）。
-> 仓库转为 public 后对所有人正常显示。
-
 ## Docker
 
 ```bash
