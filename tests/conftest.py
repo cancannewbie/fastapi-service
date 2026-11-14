@@ -84,4 +84,4 @@ async def client(settings: Settings) -> AsyncIterator[AsyncClient]:
             yield test_client
         async with app.state.engine.begin() as connection:
             # RESTART IDENTITY also resets the sequence, so ids stay predictable.
-            await connection.execute(text("TRUNCATE items RESTART IDENTITY"))
+            await connection.execute(text("TRUNCATE tasks, users, items RESTART IDENTITY"))

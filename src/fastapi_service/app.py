@@ -5,13 +5,17 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from .api import api_router, health_router
+from .api.auth import configure_auth_openapi
 from .config import Settings, get_settings
 from .db.session import create_engine, create_session_factory
 from .errors import register_error_handlers
@@ -65,7 +69,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     application.state.settings = resolved
     application.state.logger = logging.getLogger(resolved.app_name)
-    application.state.engine = create_engine(resolved.database_url, echo=resolved.db_echo)
+    application.state.engine = create_engine(
+        resolved.database_url,
+        echo=resolved.db_echo,
+        pool_size=resolved.db_pool_size,
+        max_overflow=resolved.db_max_overflow,
+    )
     application.state.session_factory = create_session_factory(application.state.engine)
 
     application.add_middleware(
@@ -79,6 +88,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_error_handlers(application)
     application.include_router(health_router)
     application.include_router(api_router, prefix=resolved.api_prefix)
+    configure_auth_openapi(application, resolved.api_prefix)
+
+    static_dir = Path(__file__).parent / "static"
+    application.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+    @application.get("/", include_in_schema=False)
+    async def frontend() -> FileResponse:
+        return FileResponse(static_dir / "index.html")
+
+    @application.get("/frontend-config", include_in_schema=False)
+    async def frontend_config() -> dict[str, str]:
+        return {"api_prefix": resolved.api_prefix}
+
     return application
 
 

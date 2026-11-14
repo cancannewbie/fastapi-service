@@ -35,6 +35,9 @@ services:
   app:
     build: .
     image: fastapi-service
+    env_file:
+      - path: .env
+        required: false
     depends_on:
       postgres:
         condition: service_healthy

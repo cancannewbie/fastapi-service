@@ -7,7 +7,9 @@ Values come from environment variables prefixed with ``FASTAPI_`` (or a
 from __future__ import annotations
 
 from functools import lru_cache
+from secrets import token_urlsafe
 
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,11 +33,17 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    # Set FASTAPI_JWT_SECRET to a stable, high-entropy value across workers/restarts.
+    jwt_secret: SecretStr = Field(default_factory=lambda: SecretStr(token_urlsafe(32)))
+    jwt_expire_minutes: int = Field(default=30, gt=0)
+
     # SQLAlchemy URL. Use the "postgresql+psycopg://" driver (async capable);
     # "postgresql+asyncpg://" also works if you prefer asyncpg.
     # The port matches compose.yaml's published host port (5433).
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5433/fastapi_service"
     db_echo: bool = False
+    db_pool_size: int = Field(default=5, ge=0)
+    db_max_overflow: int = Field(default=10, ge=-1)
     db_check_on_startup: bool = True
 
 
